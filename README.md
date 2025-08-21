@@ -25,7 +25,7 @@ Saves it into matlab figures, plots(png), .m datafile, and a patient summary inf
 
 
 
-0. Main file is the "perceptGT.m" file, user will only need to interact with this file. The user can select **a** single folder or multiple JSON files,** as long as they are inside the parent folder(Percept_files) or the parent folder itself.**
+0. Main file is the "perceptGT.m" file, user will only need to interact with this file. The user can select **a** single folder or multiple JSON files, **as long as they are inside the parent folder(Percept_files) or the parent folder itself.**
 1. Set the pathname to the folder containing perceptGT.m file
     ex. 'C:/Users/rlaan/perceptGT/' -> 'your computer's path'
 2. Run the matlab file, perceptGT.m
