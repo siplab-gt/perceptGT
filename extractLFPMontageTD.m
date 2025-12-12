@@ -131,7 +131,7 @@ for recId = 1:nRecs
     end
 
     %For the save name, hemisphere side is added
-    savename = [savename ' ' hemiLabel]
+    savename = [savename ' ' hemiLabel];
 
     %! Checking to see if it's 6 channel (not interested in intra and inter
     %values)
