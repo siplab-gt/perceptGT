@@ -97,7 +97,7 @@ for recId = 1:nRecs
         
         if isDataMissing
             LFP = correct4MissingSamples(LFP, TicksInS, GlobalPacketSizes);
-        end
+        end  
                 
     end
     
@@ -129,6 +129,9 @@ for recId = 1:nRecs
     elseif strcmp(recordingMode, 'LfpMontageTimeDomain')
         savename = [params.subjectID ' ' date ' ' recordingMode];
     end
+
+    %For the save name, hemisphere side is added
+    savename = [savename ' ' hemiLabel]
 
     %! Checking to see if it's 6 channel (not interested in intra and inter
     %values)

@@ -7,7 +7,7 @@
     %Credit: Yohann Thenaisie 02.09.2020 - Lausanne University Hospital (CHUV)
 
 %%%%%%%%%%%%%%%%%%% Change pathname to perceptGT %%%%%%%%%%%%%%%%%%%%
-addpath(genpath('C:/Users/rlaan/perceptGT/'))
+addpath(genpath('C:/Users/rlaan/perceptGT'))
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 choice = bigmenu('Select input mode:', {'A folder', 'JSON files'}, ...
