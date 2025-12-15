@@ -286,7 +286,7 @@ for fileId = 1:numel(filenames)
     if isempty(mRun), mRun = regexpi(fname, 'run-([^/\\_\.]+)', 'tokens', 'once'); end
 
     params.sessionLabel = ''; params.runLabel = '';
-    if ~isempty(mAcq), params.sessionLabel = ['acq-' mAcq{1}]; end
+    if ~isempty(mAcq), params.sessionLabel = ['acq-' mAcq{1} 'm']; end
     if ~isempty(mRun), params.runLabel     = ['run-' mRun{1}]; end
     if isempty(params.sessionLabel), params.sessionLabel = 'acq-NA'; end
     if isempty(params.runLabel),     params.runLabel     = 'run-NA'; end

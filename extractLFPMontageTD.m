@@ -165,14 +165,14 @@ for recId = 1:nRecs
             set(spectroFig, 'Units', 'inches');
             set(spectroFig, 'Position', [1, 1, 8, 6]);
             savefig(spectroFig, [params.save_pathname filesep savename '_Spectrogram']);
-            exportgraphics(spectroFig, fullfile(params.save_pathname, [savename '_Spectrogram.png']),'Resolution',500)
+            exportgraphics(spectroFig, fullfile(params.save_pathname, [savename '_Spectrogram.png']),'Resolution',500);
         else
             continue
         end
     end
       
     %save LFPs
-    save([params.save_pathname filesep savename '.mat'], 'LFP')
-    disp([savename ' saved'])
+    save([params.save_pathname filesep savename '.mat'], 'LFP');
+    disp([savename ' saved']);
 
 end
