@@ -4,7 +4,7 @@
 % PSD/TD into Result/sub-XXXX when present.
 
 %%%%%%%%%%%%%%%%%%% Change pathname to perceptGT %%%%%%%%%%%%%%%%%%%%
-addpath(genpath('/Users/rlaan/Capstone/'))
+addpath(genpath('/Users/rebeccaroth/Documents/MATLAB/perceptGT-master_Updated'))
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % --- Keep MATLAB figures from popping up (and auto-restore at end) ---
@@ -87,7 +87,11 @@ elseif choice == 3
         L = L(~[L.isdir]);
         paths = cellfun(@fullfile, {L.folder}, {L.name}, 'UniformOutput', false);
         jf = paths(endsWith(lower(paths), '.json'));
-        if ~isempty(jf), allFiles = [allFiles, jf]; else, fprintf('No JSON files found in %s\n', thisSub); end
+        if ~isempty(jf)
+            allFiles = [allFiles, jf]; %#ok<AGROW>
+        else
+            fprintf('No JSON files found in %s\n', thisSub);
+        end
     end
     filenames = unique(allFiles);
     if isempty(filenames), disp('No JSON files found in any subject folder.'); return; end
@@ -117,21 +121,35 @@ for fileId = 1:numel(filenames)
     % -------------------------------------------------------------------------
 
     % Defaults per file
-    rateInHertz = NaN; months = NaN;
+    rateInHertz = NaN;
+    monthsPostImplant_calendar = NaN;      % full calendar months between implant & session
+    daysPostImplant_calendar   = NaN;      % continuous days between implant & session
+
     lAmplitude = NaN; rAmplitude = NaN; lPulseWidth = NaN; rPulseWidth = NaN;
     sss_status = false; sss_duration = NaN;
     cycling_status = false; cycling_on = NaN; cycling_off = NaN;
-    implantDate_formatted = NaT; timeSinceTherapy = NaN; timeSinceFollowup = NaN;
+
+    implantDate_formatted = NaT;
+    jsonSessionDate       = NaT;
+
+    timeSinceTherapy  = NaN;  % hours (from device counter)
+    timeSinceFollowup = NaN;  % hours (from device counter)
 
     % Read JSON robustly
     try
         rawtxt = fileread(fname);
         data = jsondecode(rawtxt);
-        jsonSessionDate = NaT;
+
         if isfield(data,'SessionDate') && ~isempty(data.SessionDate)
             try
-                jsonSessionDate = datetime(data.SessionDate,'InputFormat','yyyy-MM-dd''T''HH:mm:ss''Z');
+                jsonSessionDate = datetime(data.SessionDate,'InputFormat','yyyy-MM-dd''T''HH:mm:ss''Z','TimeZone','UTC');
             catch
+                % Try a more flexible parse
+                try
+                    jsonSessionDate = datetime(data.SessionDate,'TimeZone','UTC');
+                catch
+                    jsonSessionDate = NaT;
+                end
             end
         end
     catch ME
@@ -152,11 +170,11 @@ for fileId = 1:numel(filenames)
         if isstruct(node)
             if numel(node) > 1
                 for ii = 1:numel(node)
-                    nodes{end+1} = node(ii);
+                    nodes{end+1} = node(ii); %#ok<AGROW>
                     if isempty(ctx)
-                        ctxs{end+1}  = sprintf('(%d)', ii);
+                        ctxs{end+1}  = sprintf('(%d)', ii); %#ok<AGROW>
                     else
-                        ctxs{end+1}  = sprintf('%s(%d)', ctx, ii);
+                        ctxs{end+1}  = sprintf('%s(%d)', ctx, ii); %#ok<AGROW>
                     end
                 end
                 continue
@@ -195,10 +213,12 @@ for fileId = 1:numel(filenames)
                 if isstruct(val)
                     if numel(val) > 1
                         for ii = 1:numel(val)
-                            nodes{end+1} = val(ii); ctxs{end+1} = sprintf('%s(%d)', childCtx, ii);
+                            nodes{end+1} = val(ii); %#ok<AGROW>
+                            ctxs{end+1}  = sprintf('%s(%d)', childCtx, ii); %#ok<AGROW>
                         end
                     else
-                        nodes{end+1} = val; ctxs{end+1} = childCtx;
+                        nodes{end+1} = val; %#ok<AGROW>
+                        ctxs{end+1}  = childCtx; %#ok<AGROW>
                     end
                 elseif iscell(val)
                     for ci = 1:numel(val)
@@ -206,10 +226,12 @@ for fileId = 1:numel(filenames)
                         if isstruct(v)
                             if numel(v) > 1
                                 for ii = 1:numel(v)
-                                    nodes{end+1} = v(ii); ctxs{end+1} = sprintf('%s{%d}', childCtx, ci);
+                                    nodes{end+1} = v(ii); %#ok<AGROW>
+                                    ctxs{end+1}  = sprintf('%s{%d}', childCtx, ci); %#ok<AGROW>
                                 end
                             else
-                                nodes{end+1} = v; ctxs{end+1} = sprintf('%s{%d}', childCtx, ci);
+                                nodes{end+1} = v; %#ok<AGROW>
+                                ctxs{end+1}  = sprintf('%s{%d}', childCtx, ci); %#ok<AGROW>
                             end
                         end
                     end
@@ -222,10 +244,12 @@ for fileId = 1:numel(filenames)
                 if isstruct(v)
                     if numel(v) > 1
                         for ii = 1:numel(v)
-                            nodes{end+1} = v(ii); ctxs{end+1} = sprintf('%s{%d}', ctx, ci);
+                            nodes{end+1} = v(ii); %#ok<AGROW>
+                            ctxs{end+1}  = sprintf('%s{%d}', ctx, ci); %#ok<AGROW>
                         end
                     else
-                        nodes{end+1} = v; ctxs{end+1} = sprintf('%s{%d}', ctx, ci);
+                        nodes{end+1} = v; %#ok<AGROW>
+                        ctxs{end+1}  = sprintf('%s{%d}', ctx, ci); %#ok<AGROW>
                     end
                 end
             end
@@ -247,7 +271,7 @@ for fileId = 1:numel(filenames)
     end
     % ================= End deep scan =======================================
 
-    % ---------- subject, acq, run ----------
+    % ---------- subject, run ----------
     params = struct(); params.fname = fname;
     [~, baseName, ~] = fileparts(fname);
 
@@ -260,60 +284,86 @@ for fileId = 1:numel(filenames)
         if ~isempty(m2), params.subjectID = m2{1}; else, params.subjectID = 'unknown'; end
     end
     subjectID = {params.subjectID};
+
     params.save_pathname = fullfile(outputPath, ['sub-' subjectID{1}]);
     if ~exist(params.save_pathname, 'dir'), mkdir(params.save_pathname); end
-    
-    % Device info (timing)
+
+    % ---------- Device info (timing) ----------
     if isfield(data,'DeviceInformation') && isfield(data.DeviceInformation,'Initial')
         DI = data.DeviceInformation.Initial;
+
+        % Implant date
         if isfield(DI,'ImplantDate') && ~isempty(DI.ImplantDate)
-            try, implantDate_formatted = datetime(DI.ImplantDate,'InputFormat','yyyy-MM-dd''T''HH:mm:ss''Z'); end
+            try
+                implantDate_formatted = datetime(DI.ImplantDate,'InputFormat','yyyy-MM-dd''T''HH:mm:ss''Z','TimeZone','UTC');
+            catch
+                try
+                    implantDate_formatted = datetime(DI.ImplantDate,'TimeZone','UTC');
+                catch
+                    implantDate_formatted = NaT;
+                end
+            end
         end
-        if isfield(DI,'AccumulatedTherapyOnTimeSinceImplant'),  timeSinceTherapy  = DI.AccumulatedTherapyOnTimeSinceImplant  / 3600; end
-        if isfield(DI,'AccumulatedTherapyOnTimeSinceFollowup'), timeSinceFollowup = DI.AccumulatedTherapyOnTimeSinceFollowup / 3600; end
-        % Calculate # of months based on implant date and session date
-        d1 = datetime(DI.ImplantDate,'InputFormat',"yyyy-MM-dd'T'HH:mm:ssX",'TimeZone','UTC');
-        d2 = datetime(jsonSessionDate,'InputFormat',"yyyy-MM-dd'T'HH:mm:ssX",'TimeZone','UTC');
-        months = double(calmonths(between(d1,d2,'months')));
-        %implantDate
-        %jsonSessionDate
+
+        % Counters (seconds -> hours)
+        if isfield(DI,'AccumulatedTherapyOnTimeSinceImplant')
+            timeSinceTherapy = DI.AccumulatedTherapyOnTimeSinceImplant / 3600;
+        end
+        if isfield(DI,'AccumulatedTherapyOnTimeSinceFollowup')
+            timeSinceFollowup = DI.AccumulatedTherapyOnTimeSinceFollowup / 3600;
+        end
+
+        % Calendar timepoint from JSON dates (ImplantDate -> SessionDate)
+        if ~isnat(implantDate_formatted) && ~isnat(jsonSessionDate)
+            try
+                % Full calendar months
+                monthsPostImplant_calendar = double(calmonths(between(implantDate_formatted, jsonSessionDate, 'months')));
+            catch
+                monthsPostImplant_calendar = NaN;
+            end
+            try
+                daysPostImplant_calendar = days(jsonSessionDate - implantDate_formatted);
+            catch
+                daysPostImplant_calendar = NaN;
+            end
+        end
     end
 
-    % acq/run from filename OR full path (case-insensitive)
-    mAcq = {num2str(months)};  % mAcq = regexpi(baseName, 'acq-([^_\.]+)', 'tokens', 'once');
+    % ---------- Labels ----------
+    % run- label from filename (identifier only)
     mRun = regexpi(baseName, 'run-([^_\.]+)', 'tokens', 'once');
-    if isempty(mAcq), mAcq = regexpi(fname, 'acq-([^/\\_\.]+)', 'tokens', 'once'); end
     if isempty(mRun), mRun = regexpi(fname, 'run-([^/\\_\.]+)', 'tokens', 'once'); end
 
-    params.sessionLabel = ''; params.runLabel = '';
-    if ~isempty(mAcq), params.sessionLabel = ['acq-' mAcq{1} 'm']; end
-    if ~isempty(mRun), params.runLabel     = ['run-' mRun{1}]; end
-    if isempty(params.sessionLabel), params.sessionLabel = 'acq-NA'; end
-    if isempty(params.runLabel),     params.runLabel     = 'run-NA'; end
+    params.runLabel = 'run-NA';
+    if ~isempty(mRun), params.runLabel = ['run-' mRun{1}]; end
+
+    % acq- label computed from JSON dates ONLY
+    params.sessionLabel = 'acq-NA';
+    if ~isnan(monthsPostImplant_calendar)
+        params.sessionLabel = sprintf('acq-%dm', monthsPostImplant_calendar);
+    end
 
     acqLabelOut = params.sessionLabel;
     runLabelOut = params.runLabel;
 
-    % Session date (info only)
+    % Session date (info only; already parsed)
     params.SessionDate = '';
     sessionDate_formatted = NaT;
     if isfield(data,'SessionDate') && ~isempty(data.SessionDate)
         try
             params.SessionDate = regexprep(data.SessionDate, {':','-'}, {'',''});
-            sessionDate_formatted = datetime(data.SessionDate,'InputFormat','yyyy-MM-dd''T''HH:mm:ss''Z');
+            sessionDate_formatted = datetime(data.SessionDate,'InputFormat','yyyy-MM-dd''T''HH:mm:ss''Z','TimeZone','UTC');
         catch
             params.SessionDate = regexprep(char(data.SessionDate), {':','-'}, {'',''});
         end
     end
-
-
-
 
     % -------- Groups (program settings) with robust hemisphere extraction ------
     if isfield(data, 'Groups')
         groupTypes = {'Initial'}; % only "Initial" (Final=plan)
         for g = 1:numel(groupTypes)
             groupData = data.Groups.(groupTypes{g});
+
             % pick active group element, else first
             activeIdx = [];
             for idx = 1:numel(groupData)
@@ -346,8 +396,6 @@ for fileId = 1:numel(filenames)
 
             % GroupSettings for soft start / cycling
             if isfield(block,'GroupSettings'), groupSettings = block.GroupSettings; else, groupSettings = struct(); end
-
-            % ----- HEMISPHERE EXTRACTION (inline) -----
 
             % Classic: LeftHemisphere/RightHemisphere.Programs
             if isfield(PS,'LeftHemisphere') && isfield(PS.LeftHemisphere,'Programs')
@@ -422,37 +470,38 @@ for fileId = 1:numel(filenames)
     end
     % -------------------------------------------------------------------------
 
-    % --- Derived durations from hours (consistent with device counters) ---
+    % --- Derived durations from hours (device counters) ---
     daysSinceImplant     = timeSinceTherapy  / 24;
-    monthsSinceImplant   = daysSinceImplant  / 30.4375;   % Gregorian average month
+    monthsSinceImplant   = daysSinceImplant  / 30.4375;   % average month length (therapy-on)
     daysSinceFollowup    = timeSinceFollowup / 24;
     monthsSinceFollowup  = daysSinceFollowup / 30.4375;
 
     % ---- Build tidy row for this file ----
     rec = struct( ...
-        'SubjectID',            string(subjectID{1}), ...
-        'AcqLabel',             string(acqLabelOut), ...
-        'NumFullMonths',        months, ...
-        'RunLabel',             string(runLabelOut), ...
-        'SessionDate',          jsonSessionDate, ...
-        'ImplantDate',          implantDate_formatted, ...
-        'HoursSinceImplant',    timeSinceTherapy, ...
-        'DaysSinceImplant',     daysSinceImplant, ...
-        'MonthsSinceImplant',   monthsSinceImplant, ...
-        'HoursSinceFollowup',   timeSinceFollowup, ...
-        'DaysSinceFollowup',    daysSinceFollowup, ...
-        'MonthsSinceFollowup',  monthsSinceFollowup, ...
-        'LeftAmplitude_mA',     lAmplitude, ...
-        'RightAmplitude_mA',    rAmplitude, ...
-        'LeftPulseWidth_us',    lPulseWidth, ...
-        'RightPulseWidth_us',   rPulseWidth, ...
-        'Rate_Hz',              rateInHertz, ...
-        'SoftStartEnabled',     logical(sss_status), ...
-        'SoftStartDuration_s',  sss_duration, ...
-        'CyclingEnabled',       logical(cycling_status), ...
-        'CyclingOn_s',          cycling_on, ...
-        'CyclingOff_s',         cycling_off, ...
-        'SourceFile',           string(fname) ...
+        'SubjectID',                   string(subjectID{1}), ...
+        'AcqLabel',                    string(acqLabelOut), ...
+        'MonthsPostImplant_Calendar',  monthsPostImplant_calendar, ...
+        'DaysPostImplant_Calendar',    daysPostImplant_calendar, ...
+        'RunLabel',                    string(runLabelOut), ...
+        'SessionDate',                 jsonSessionDate, ...
+        'ImplantDate',                 implantDate_formatted, ...
+        'HoursSinceImplant',           timeSinceTherapy, ...
+        'DaysSinceImplant',            daysSinceImplant, ...
+        'MonthsTherapyOn',             monthsSinceImplant, ...
+        'HoursSinceFollowup',          timeSinceFollowup, ...
+        'DaysSinceFollowup',           daysSinceFollowup, ...
+        'MonthsSinceFollowup',         monthsSinceFollowup, ...
+        'LeftAmplitude_mA',            lAmplitude, ...
+        'RightAmplitude_mA',           rAmplitude, ...
+        'LeftPulseWidth_us',           lPulseWidth, ...
+        'RightPulseWidth_us',          rPulseWidth, ...
+        'Rate_Hz',                     rateInHertz, ...
+        'SoftStartEnabled',            logical(sss_status), ...
+        'SoftStartDuration_s',         sss_duration, ...
+        'CyclingEnabled',              logical(cycling_status), ...
+        'CyclingOn_s',                 cycling_on, ...
+        'CyclingOff_s',                cycling_off, ...
+        'SourceFile',                  string(fname) ...
     );
 
     % ---- Schema-safe append to rows (prevents "dissimilar structures") ----
@@ -465,7 +514,7 @@ for fileId = 1:numel(filenames)
         % Add fields missing in rec (fill with [])
         missInRec = setdiff(f0, f1);
         for k = 1:numel(missInRec)
-            rec.(missInRec{k}) = [];             % [] works for heterogeneous types
+            rec.(missInRec{k}) = [];
         end
 
         % Add fields missing in existing rows (fill [] for all prior elems)
@@ -474,12 +523,12 @@ for fileId = 1:numel(filenames)
             for k = 1:numel(missInRows)
                 [rows.(missInRows{k})] = deal([]);
             end
-            rows = orderfields(rows, rec);       % align order now that sets match
+            rows = orderfields(rows, rec);
         end
 
         % Final order alignment & append
         rec  = orderfields(rec, rows);
-        rows(end+1) = rec;                       %#ok<SAGROW>
+        rows(end+1) = rec; %#ok<SAGROW>
     end
 
     % ---------- LFP Data Extraction (Survey only) ----------
@@ -499,6 +548,7 @@ for fileId = 1:numel(filenames)
             if hasPSD
                 params.recordingMode = 'LFPMontage';
                 try, extractLFPMontage(data, params); catch ME, warning('extractLFPMontage failed: %s', ME.message); end
+                print("PSD extracted")
             end
             if hasTD
                 params.recordingMode = 'LfpMontageTimeDomain';
@@ -529,8 +579,11 @@ for fileId = 1:numel(filenames)
                 [p0, b0, e0] = fileparts(dst);
                 dst = fullfile(p0, sprintf('%s_dupe%s', b0, e0));
             end
-            try, movefile(src, dst); fprintf('Moved stray output "%s" into %s\n', nm, params.save_pathname);
-            catch mErr, warning('Could not move "%s" to subject folder: %s', nm, mErr.message);
+            try
+                movefile(src, dst);
+                fprintf('Moved stray output "%s" into %s\n', nm, params.save_pathname);
+            catch mErr
+                warning('Could not move "%s" to subject folder: %s', nm, mErr.message);
             end
         end
     end
@@ -606,9 +659,11 @@ if isempty(rows)
     warning('No rows collected. Nothing to write.');
 else
     Tidy = struct2table(rows);
+
     % Column order to show in the sheet:
-    order = {'SubjectID','AcqLabel','NumFullMonths','RunLabel','SessionDate','ImplantDate', ...
-        'HoursSinceImplant','DaysSinceImplant','MonthsSinceImplant', ...
+    order = {'SubjectID','AcqLabel','MonthsPostImplant_Calendar','DaysPostImplant_Calendar','RunLabel', ...
+        'SessionDate','ImplantDate', ...
+        'HoursSinceImplant','DaysSinceImplant','MonthsTherapyOn', ...
         'HoursSinceFollowup','DaysSinceFollowup','MonthsSinceFollowup', ...
         'LeftAmplitude_mA','RightAmplitude_mA', ...
         'LeftPulseWidth_us','RightPulseWidth_us','Rate_Hz', ...
